@@ -42,6 +42,11 @@ def decimal_encoder(dec_value: Decimal) -> Union[int, float]:
 
 
 ENCODERS_BY_TYPE: Dict[Type[Any], Callable[[Any], Any]] = {
+    bool: bool,
+    int: int,
+    float: float,
+    str: str,
+    type(None): lambda v: None,
     bytes: lambda o: o.decode(),
     Color: str,
     datetime.date: isoformat,
@@ -69,13 +74,13 @@ ENCODERS_BY_TYPE: Dict[Type[Any], Callable[[Any], Any]] = {
 }
 
 
-def pydantic_encoder(obj: Any) -> Any:
+def pydantic_encoder(obj: Any, serialize: Union[bool, Callable[[Any], Any]]=False) -> Any:
     from dataclasses import asdict, is_dataclass
 
     from .main import BaseModel
 
     if isinstance(obj, BaseModel):
-        return obj.dict()
+        return obj.dict(serialize=serialize)
     elif is_dataclass(obj):
         return asdict(obj)
 
@@ -90,7 +95,7 @@ def pydantic_encoder(obj: Any) -> Any:
         raise TypeError(f"Object of type '{obj.__class__.__name__}' is not JSON serializable")
 
 
-def custom_pydantic_encoder(type_encoders: Dict[Any, Callable[[Type[Any]], Any]], obj: Any) -> Any:
+def custom_pydantic_encoder(type_encoders: Dict[Any, Callable[[Type[Any]], Any]], obj: Any, serialize: Union[bool, Callable[[Any], Any]]=False) -> Any:
     # Check the class type and its superclasses for a matching encoder
     for base in obj.__class__.__mro__[:-1]:
         try:
@@ -100,7 +105,7 @@ def custom_pydantic_encoder(type_encoders: Dict[Any, Callable[[Type[Any]], Any]]
 
         return encoder(obj)
     else:  # We have exited the for loop without finding a suitable encoder
-        return pydantic_encoder(obj)
+        return pydantic_encoder(obj, serialize=serialize)
 
 
 def timedelta_isoformat(td: datetime.timedelta) -> str:
